@@ -11,6 +11,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
+  <!-- HTML2PDF Bibliotheek voor rechtstreekse PDF download -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
   <style>
     @media print {
       body * { visibility: hidden; }
@@ -200,12 +203,13 @@
     </main>
 
     <!-- FACTUUR WEERGAVE MODAL -->
-    <div id="invoice-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden no-print">
+    <div id="invoice-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
       <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-4">
-        <div class="flex justify-between items-center border-b pb-3">
+        <div class="flex justify-between items-center border-b pb-3 no-print">
           <h3 class="font-bold text-lg text-slate-800">Factuur Voorbeeld</h3>
           <div class="space-x-2">
-            <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold shadow">Afdrukken / Opslaan als PDF</button>
+            <button onclick="downloadPDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold shadow transition">📥 Download PDF</button>
+            <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold shadow transition">Afdrukken</button>
             <button onclick="closeInvoiceModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-semibold">Sluiten</button>
           </div>
         </div>
@@ -237,6 +241,7 @@
       { id: 40, boxName: "Tappersweg 57, Box 40", tenantCompany: "Ivo Groenendijk", tenantAttn: "Ivo Groenendijk", email: "", address: "Rijksstraatweg 174 A", zipCity: "2022DG Haarlem", rentExcl: 257.00, elecExcl: 20.00, serviceExcl: 17.50 }
     ];
     let invoices = [];
+    let currentActiveInvoiceNum = '';
 
     document.addEventListener('DOMContentLoaded', () => {
       const now = new Date();
@@ -512,6 +517,8 @@
       const inv = invoices.find(i => i.invoiceNum === invoiceNum);
       if (!inv) return;
 
+      currentActiveInvoiceNum = invoiceNum;
+
       document.getElementById('printable-invoice').innerHTML = `
         <div class="space-y-6">
           <div class="flex justify-between items-start">
@@ -576,6 +583,24 @@
       document.getElementById('invoice-modal').classList.add('hidden');
     }
 
+    function downloadPDF() {
+      const inv = invoices.find(i => i.invoiceNum === currentActiveInvoiceNum);
+      const element = document.getElementById('printable-invoice');
+
+      let boxClean = inv && inv.boxName ? inv.boxName.replace(/[^a-zA-Z0-9]/g, '_') : 'Box';
+      const filename = inv ? `Factuur_${inv.invoiceNum}_${boxClean}.pdf` : `Factuur_${currentActiveInvoiceNum}.pdf`;
+
+      const opt = {
+        margin:       10,
+        filename:     filename,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      html2pdf().set(opt).from(element).save();
+    }
+
     function openGmailDraft(invoiceNum) {
       const inv = invoices.find(i => i.invoiceNum === invoiceNum);
       if (!inv) return;
@@ -589,7 +614,7 @@
         `Totaalbedrag incl. BTW: € ${inv.totalIncl.toFixed(2).replace('.', ',')}\n` +
         `Vervaldatum: ${inv.dueDate}\n\n` +
         `Gelieve dit bedrag voor ${inv.dueDate} over te maken op rekeningnummer ${owner.iban} t.n.v. ${owner.name} o.v.v. "Factuur ${inv.invoiceNum}".\n\n` +
-        `Met vriendelijke gorét,\n\n` +
+        `Met vriendelijke groet,\n\n` +
         `${owner.name}\n` +
         `Tel.: ${owner.phone}`;
 
