@@ -574,7 +574,8 @@
 
       const recipient = inv.tenantEmail || '';
       const subject = `Factuur ${inv.invoiceNum} - Huur ${inv.boxName}`;
-      const body = `Beste ${inv.tenantAttn || inv.tenantCompany},\n\n` +
+      const body = `E-mailadres ontvanger: ${recipient || 'Geen e-mailadres ingesteld'}\n\n` +
+        `Beste ${inv.tenantAttn || inv.tenantCompany},\n\n` +
         `Hierbij ontvangt u de factuur voor de maandelijkse huur van ${inv.boxName} voor de periode ${inv.periodStr}.\n\n` +
         `Factuurnummer: ${inv.invoiceNum}\n` +
         `Totaalbedrag incl. BTW: € ${inv.totalIncl.toFixed(2).replace('.', ',')}\n` +
