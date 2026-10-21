@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Garagebox Factuurbeheer - CA Fictoor</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -31,7 +30,7 @@
       </div>
       <div>
         <h2 class="text-2xl font-bold text-slate-900">Beveiligde Toegang</h2>
-        <p class="text-sm text-slate-500 mt-1">Vul de beheerderspincode in om de factuurdomeinen te openen.</p>
+        <p class="text-sm text-slate-500 mt-1">Vul de beheerderspincode in om het factuurbeheer te openen.</p>
       </div>
       <div>
         <input type="password" id="pin-input" placeholder="****" maxlength="8" class="w-full text-center text-3xl tracking-widest border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
@@ -43,7 +42,7 @@
     </div>
   </div>
 
-  <!-- HOOFDTOEPASSING (VERBORGEN TOT VERIFICATIE) -->
+  <!-- HOOFDTOEPASSING -->
   <div id="app-container" class="hidden">
     <header class="bg-slate-900 text-white shadow-md no-print">
       <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -51,10 +50,11 @@
           <h1 class="text-2xl font-bold tracking-tight">Garagebox Factuurbeheer</h1>
           <span id="cloud-status" class="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full font-medium">Beveiligd Verbonden ✓</span>
         </div>
-        <nav class="flex space-x-2">
-          <button onclick="switchTab('dashboard')" id="tab-dashboard" class="px-4 py-2 rounded-lg bg-blue-600 font-medium text-sm transition">Facturen & Beheer</button>
-          <button onclick="switchTab('kwartaal')" id="tab-kwartaal" class="px-4 py-2 rounded-lg hover:bg-slate-800 font-medium text-sm transition">Kwartaal / BTW Aangifte</button>
-          <button onclick="switchTab('instellingen')" id="tab-instellingen" class="px-4 py-2 rounded-lg hover:bg-slate-800 font-medium text-sm transition">Instellingen & Huurders</button>
+        <nav class="flex flex-wrap gap-2">
+          <button onclick="switchTab('dashboard')" id="tab-dashboard" class="px-3.5 py-2 rounded-lg bg-blue-600 font-medium text-sm transition">Facturen & Beheer</button>
+          <button onclick="switchTab('maand')" id="tab-maand" class="px-3.5 py-2 rounded-lg hover:bg-slate-800 font-medium text-sm transition">Maandoverzicht</button>
+          <button onclick="switchTab('kwartaal')" id="tab-kwartaal" class="px-3.5 py-2 rounded-lg hover:bg-slate-800 font-medium text-sm transition">Kwartaal / BTW</button>
+          <button onclick="switchTab('instellingen')" id="tab-instellingen" class="px-3.5 py-2 rounded-lg hover:bg-slate-800 font-medium text-sm transition">Instellingen</button>
         </nav>
       </div>
     </header>
@@ -66,7 +66,7 @@
         <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h2 class="text-xl font-bold text-slate-900">Maandelijkse Facturen Genereren</h2>
-            <p class="text-sm text-slate-500">Selecteer de gewenste maand en genereer direct de 3 facturen met SEPA QR-code.</p>
+            <p class="text-sm text-slate-500">Selecteer de gewenste maand en genereer direct de 3 facturen.</p>
           </div>
           <div class="flex items-center gap-3 w-full md:w-auto">
             <input type="month" id="selected-month" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -78,7 +78,7 @@
 
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-            <h3 class="font-bold text-slate-800">Aangemaakte Facturen</h3>
+            <h3 class="font-bold text-slate-800">Aangemaakte Facturen (Alle)</h3>
             <span id="factuur-count" class="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">0 facturen</span>
           </div>
           <div class="overflow-x-auto">
@@ -96,6 +96,47 @@
               </thead>
               <tbody id="invoices-table-body" class="divide-y divide-slate-100 text-sm">
                 <tr><td colspan="7" class="p-6 text-center text-slate-400">Laden van cloud-gegevens...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAANDOVERZICHT TAB -->
+      <div id="view-maand" class="space-y-6 hidden">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">Maandoverzicht</h2>
+            <p class="text-sm text-slate-500">Bekijk de omzet en gegenereerde facturen per specifieke maand.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="text-xs font-semibold text-slate-600">Selecteer Maand:</label>
+            <input type="month" id="maandoverzicht-filter" onchange="renderMaandoverzicht()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="maand-summary-cards">
+          <!-- Totals per month rendered here -->
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="px-6 py-4 border-b border-slate-200">
+            <h3 class="font-bold text-slate-800" id="maand-table-header">Facturen voor deze maand</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 text-xs uppercase font-semibold border-b border-slate-200">
+                  <th class="p-4">Factuurnr</th>
+                  <th class="p-4">Huurder / Box</th>
+                  <th class="p-4">Bedrag (Excl.)</th>
+                  <th class="p-4">BTW (21%)</th>
+                  <th class="p-4">Totaal (Incl.)</th>
+                  <th class="p-4 text-right">Actie</th>
+                </tr>
+              </thead>
+              <tbody id="maand-invoices-body" class="divide-y divide-slate-100 text-sm">
+                <tr><td colspan="6" class="p-6 text-center text-slate-400">Selecteer een maand om de facturen te bekijken.</td></tr>
               </tbody>
             </table>
           </div>
@@ -156,7 +197,6 @@
   </div>
 
   <script>
-    // Firebase Configificatie
     const firebaseConfig = {
       apiKey: "AIzaSyA681f0MvMrI7r6EHgzHyGtbs9fVW1s2P0",
       authDomain: "facturen-garageboxen.firebaseapp.com",
@@ -182,7 +222,9 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       const now = new Date();
-      document.getElementById('selected-month').value = now.toISOString().substring(0, 7);
+      const currentMonthStr = now.toISOString().substring(0, 7);
+      document.getElementById('selected-month').value = currentMonthStr;
+      document.getElementById('maandoverzicht-filter').value = currentMonthStr;
 
       document.getElementById('pin-input').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') loginWithPin();
@@ -195,16 +237,13 @@
 
       if (enteredPin === CORRECT_PIN) {
         errorEl.classList.add('hidden');
-        
         try {
-          // Automatisch geautoriseerde sessie starten bij Firebase Auth
           const email = "beheer@garageboxen.local";
           const password = "GarageboxAuthKey2026!";
           
           try {
             await auth.signInWithEmailAndPassword(email, password);
           } catch(err) {
-            // Als de account nog niet bestaat, registreer deze automatisch eenmalig
             await auth.createUserWithEmailAndPassword(email, password);
           }
 
@@ -214,9 +253,8 @@
           initRealtimeSync();
         } catch (err) {
           console.error("Auth error:", err);
-          alert("Er is een fout opgetreden bij het verbinden met de beveiligde cloud: " + err.message);
+          alert("Er is een fout opgetreden bij het verbinden met de cloud: " + err.message);
         }
-
       } else {
         errorEl.classList.remove('hidden');
         document.getElementById('pin-input').value = '';
@@ -242,17 +280,18 @@
         invoices.sort((a, b) => b.invoiceNum.localeCompare(a.invoiceNum));
 
         renderInvoices();
+        renderMaandoverzicht();
         renderKwartaal();
       });
     }
 
     function switchTab(tab) {
-      ['dashboard', 'kwartaal', 'instellingen'].forEach(t => {
+      ['dashboard', 'maand', 'kwartaal', 'instellingen'].forEach(t => {
         document.getElementById(`view-${t}`).classList.add('hidden');
-        document.getElementById(`tab-${t}`).className = "px-4 py-2 rounded-lg hover:bg-slate-800 font-medium text-sm transition";
+        document.getElementById(`tab-${t}`).className = "px-3.5 py-2 rounded-lg hover:bg-slate-800 font-medium text-sm transition";
       });
       document.getElementById(`view-${tab}`).classList.remove('hidden');
-      document.getElementById(`tab-${tab}`).className = "px-4 py-2 rounded-lg bg-blue-600 font-medium text-sm transition";
+      document.getElementById(`tab-${tab}`).className = "px-3.5 py-2 rounded-lg bg-blue-600 font-medium text-sm transition";
     }
 
     function loadOwnerInfo() {
@@ -359,6 +398,57 @@
       `).join('');
     }
 
+    function renderMaandoverzicht() {
+      const monthInput = document.getElementById('maandoverzicht-filter').value;
+      if (!monthInput) return;
+
+      const [year, month] = monthInput.split('-');
+      const monthInt = parseInt(month, 10);
+      const yearInt = parseInt(year, 10);
+
+      const filtered = invoices.filter(i => i.year === yearInt && i.month === monthInt);
+
+      const totalExcl = filtered.reduce((sum, i) => sum + i.totalExcl, 0);
+      const totalVat = filtered.reduce((sum, i) => sum + i.vatAmount, 0);
+      const totalIncl = filtered.reduce((sum, i) => sum + i.totalIncl, 0);
+
+      document.getElementById('maand-summary-cards').innerHTML = `
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-slate-500 font-semibold uppercase">Omzet (Excl. BTW)</div>
+          <div class="text-2xl font-bold text-slate-900 mt-1">€ ${totalExcl.toFixed(2).replace('.', ',')}</div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-slate-500 font-semibold uppercase">Verschuldigde BTW (21%)</div>
+          <div class="text-2xl font-bold text-blue-600 mt-1">€ ${totalVat.toFixed(2).replace('.', ',')}</div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-slate-500 font-semibold uppercase">Totaal Ontvangen (Incl. BTW)</div>
+          <div class="text-2xl font-bold text-emerald-600 mt-1">€ ${totalIncl.toFixed(2).replace('.', ',')}</div>
+        </div>
+      `;
+
+      document.getElementById('maand-table-header').innerText = `Facturen voor ${monthInput} (${filtered.length})`;
+
+      const tbody = document.getElementById('maand-invoices-body');
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Geen facturen gevonden voor de geselecteerde maand ${monthInput}.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(inv => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="p-4 font-semibold text-slate-900">${inv.invoiceNum}</td>
+          <td class="p-4"><div class="font-medium text-slate-800">${inv.tenantCompany}</div><div class="text-xs text-slate-500">${inv.boxName}</div></td>
+          <td class="p-4">€ ${inv.totalExcl.toFixed(2).replace('.', ',')}</td>
+          <td class="p-4 text-slate-500">€ ${inv.vatAmount.toFixed(2).replace('.', ',')}</td>
+          <td class="p-4 font-bold text-slate-900">€ ${inv.totalIncl.toFixed(2).replace('.', ',')}</td>
+          <td class="p-4 text-right">
+            <button onclick="viewInvoice('${inv.invoiceNum}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded text-xs font-semibold transition">Bekijk / PDF</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
     async function deleteInvoice(invoiceNum) {
       if (confirm(`Factuur ${invoiceNum} verwijderen uit de cloud?`)) {
         await db.collection('invoices').doc(invoiceNum).delete();
@@ -397,19 +487,9 @@
       }).join('');
     }
 
-    function generateEPCQR(iban, name, amount, reference) {
-      const epcPayload = ["BCD", "002", "1", "SCT", owner.bic || "", name.substring(0, 70), iban.replace(/\s+/g, ''), `EUR${amount.toFixed(2)}`, "", "", reference, ""].join("\n");
-      const qr = qrcode(0, 'M');
-      qr.addData(epcPayload);
-      qr.make();
-      return qr.createDataURL(4);
-    }
-
     function viewInvoice(invoiceNum) {
       const inv = invoices.find(i => i.invoiceNum === invoiceNum);
       if (!inv) return;
-
-      const qrDataUrl = generateEPCQR(owner.iban, owner.name, inv.totalIncl, `Factuur ${inv.invoiceNum}`);
 
       document.getElementById('printable-invoice').innerHTML = `
         <div class="space-y-6">
@@ -471,15 +551,11 @@
             </div>
           </div>
 
-          <div class="border-t border-slate-300 pt-4 mt-6 flex justify-between items-end">
-            <div class="text-xs text-slate-600 space-y-1 max-w-lg">
+          <div class="border-t border-slate-300 pt-4 mt-6">
+            <div class="text-xs text-slate-600 space-y-1">
               <p><strong>Naam:</strong> ${owner.name} | <strong>Tel.:</strong> ${owner.phone} | <strong>E-mail:</strong> ${owner.email}</p>
               <p><strong>IBAN:</strong> ${owner.iban} | <strong>BIC:</strong> ${owner.bic} | <strong>Op naam van:</strong> ${owner.name}</p>
               <p class="pt-2 text-slate-800 font-medium">Gelieve dit bedrag van € ${inv.totalIncl.toFixed(2).replace('.', ',')} over te maken voor: ${inv.dueDate} op rekeningnummer: ${owner.iban} t.n.v. ${owner.name.toUpperCase()} o.v.v. "Factuur ${inv.invoiceNum}".</p>
-            </div>
-            <div class="text-center bg-slate-50 p-2 rounded border border-slate-200">
-              <img src="${qrDataUrl}" alt="SEPA QR Code" class="w-24 h-24 mx-auto">
-              <div class="text-[10px] text-slate-500 mt-1 font-semibold">Scan om te betalen</div>
             </div>
           </div>
         </div>
