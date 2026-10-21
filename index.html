@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Garagebox Factuurbeheer - CA Fictoor</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -214,8 +213,8 @@
     let owner = { name: "CA Fictoor", phone: "+31 6 41 300 282", email: "keesfictoor@gmail.com", iban: "NL22 INGB 0654 3930 52", bic: "INGBNL2A" };
     let boxes = [
       { id: 38, boxName: "Tappersweg 57, Box 38", tenantCompany: "G.P. Boonstra Beheer B.V.", tenantAttn: "Pelle Pottermans", email: "pelle@keramikos.nl", address: "Conradweg 19", zipCity: "2031CM Haarlem", rentExcl: 300.00, elecExcl: 20.00, serviceExcl: 17.50 },
-      { id: 39, boxName: "Tappersweg 57, Box 39", tenantCompany: "Remote Admin", tenantAttn: "A. Sampathkumar", email: "info@remoteadmin.nl", address: "Oudeweg 43", zipCity: "2031CA Haarlem", rentExcl: 265.00, elecExcl: 20.00, serviceExcl: 17.50 },
-      { id: 40, boxName: "Tappersweg 57, Box 40", tenantCompany: "Ivo Groenendijk", tenantAttn: "Ivo Groenendijk", email: "ivogroenendijk@gmail.com", address: "Rijksstraatweg 174 A", zipCity: "2022DG Haarlem", rentExcl: 257.00, elecExcl: 20.00, serviceExcl: 17.50 }
+      { id: 39, boxName: "Tappersweg 57, Box 39", tenantCompany: "Remote Admin", tenantAttn: "A. Sampathkumar", email: "", address: "Oudeweg 43", zipCity: "2031CA Haarlem", rentExcl: 265.00, elecExcl: 20.00, serviceExcl: 17.50 },
+      { id: 40, boxName: "Tappersweg 57, Box 40", tenantCompany: "Ivo Groenendijk", tenantAttn: "Ivo Groenendijk", email: "", address: "Rijksstraatweg 174 A", zipCity: "2022DG Haarlem", rentExcl: 257.00, elecExcl: 20.00, serviceExcl: 17.50 }
     ];
     let invoices = [];
 
@@ -237,7 +236,7 @@
       if (enteredPin === CORRECT_PIN) {
         errorEl.classList.add('hidden');
         try {
-          const email = "beheer@garageboxen.local";
+          const email = "beheer@garageboxen.nl";
           const password = "GarageboxAuthKey2026!";
           
           try {
@@ -352,4 +351,242 @@
       for (const box of boxes) {
         const invoiceNum = `${yearInt}${month.padStart(2,'0')}00${box.id}`;
         
-        if (!invoices
+        if (!invoices.find(i => i.invoiceNum === invoiceNum)) {
+          const totalExcl = box.rentExcl + box.elecExcl + box.serviceExcl;
+          const vatAmount = totalExcl * 0.21;
+          const totalIncl = totalExcl + vatAmount;
+
+          const newInvoice = {
+            invoiceNum, year: yearInt, month: monthInt, invoiceDate: invoiceDateStr, dueDate: dueDateStr,
+            periodStr, boxId: box.id, boxName: box.boxName, tenantCompany: box.tenantCompany, tenantAttn: box.tenantAttn,
+            tenantEmail: box.email || '', address: box.address, zipCity: box.zipCity, rentExcl: box.rentExcl, elecExcl: box.elecExcl,
+            serviceExcl: box.serviceExcl, totalExcl, vatAmount, totalIncl
+          };
+
+          await db.collection('invoices').doc(invoiceNum).set(newInvoice);
+          created++;
+        }
+      }
+
+      if (created > 0) alert(`${created} facturen succesvol opgeslagen in de Cloud!`);
+      else alert(`De facturen voor ${monthInput} bestaan al in de cloud.`);
+    }
+
+    function renderInvoices() {
+      const tbody = document.getElementById('invoices-table-body');
+      document.getElementById('factuur-count').innerText = `${invoices.length} factuur/facturen`;
+
+      if (invoices.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Nog geen facturen in de cloud. Selecteer bovenaan een maand en klik op genereren.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = invoices.map(inv => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="p-4 font-semibold text-slate-900">${inv.invoiceNum}</td>
+          <td class="p-4"><div class="font-medium text-slate-800">${inv.tenantCompany}</div><div class="text-xs text-slate-500">${inv.boxName}</div></td>
+          <td class="p-4 text-xs text-slate-600">${inv.periodStr}</td>
+          <td class="p-4">€ ${inv.totalExcl.toFixed(2).replace('.', ',')}</td>
+          <td class="p-4 text-slate-500">€ ${inv.vatAmount.toFixed(2).replace('.', ',')}</td>
+          <td class="p-4 font-bold text-slate-900">€ ${inv.totalIncl.toFixed(2).replace('.', ',')}</td>
+          <td class="p-4 text-right space-x-2 whitespace-nowrap">
+            <button onclick="openGmailDraft('${inv.invoiceNum}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold shadow transition">Open Gmail</button>
+            <button onclick="viewInvoice('${inv.invoiceNum}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded text-xs font-semibold transition">Bekijk / PDF</button>
+            <button onclick="deleteInvoice('${inv.invoiceNum}')" class="text-rose-500 hover:text-rose-700 px-2 py-1 text-xs font-semibold">Wis</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderMaandoverzicht() {
+      const monthInput = document.getElementById('maandoverzicht-filter').value;
+      if (!monthInput) return;
+
+      const [year, month] = monthInput.split('-');
+      const monthInt = parseInt(month, 10);
+      const yearInt = parseInt(year, 10);
+
+      const filtered = invoices.filter(i => i.year === yearInt && i.month === monthInt);
+
+      const totalExcl = filtered.reduce((sum, i) => sum + i.totalExcl, 0);
+      const totalVat = filtered.reduce((sum, i) => sum + i.vatAmount, 0);
+      const totalIncl = filtered.reduce((sum, i) => sum + i.totalIncl, 0);
+
+      document.getElementById('maand-summary-cards').innerHTML = `
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-slate-500 font-semibold uppercase">Omzet (Excl. BTW)</div>
+          <div class="text-2xl font-bold text-slate-900 mt-1">€ ${totalExcl.toFixed(2).replace('.', ',')}</div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-slate-500 font-semibold uppercase">Verschuldigde BTW (21%)</div>
+          <div class="text-2xl font-bold text-blue-600 mt-1">€ ${totalVat.toFixed(2).replace('.', ',')}</div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-slate-500 font-semibold uppercase">Totaal Ontvangen (Incl. BTW)</div>
+          <div class="text-2xl font-bold text-emerald-600 mt-1">€ ${totalIncl.toFixed(2).replace('.', ',')}</div>
+        </div>
+      `;
+
+      document.getElementById('maand-table-header').innerText = `Facturen voor ${monthInput} (${filtered.length})`;
+
+      const tbody = document.getElementById('maand-invoices-body');
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Geen facturen gevonden voor de geselecteerde maand ${monthInput}.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(inv => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="p-4 font-semibold text-slate-900">${inv.invoiceNum}</td>
+          <td class="p-4"><div class="font-medium text-slate-800">${inv.tenantCompany}</div><div class="text-xs text-slate-500">${inv.boxName}</div></td>
+          <td class="p-4">€ ${inv.totalExcl.toFixed(2).replace('.', ',')}</td>
+          <td class="p-4 text-slate-500">€ ${inv.vatAmount.toFixed(2).replace('.', ',')}</td>
+          <td class="p-4 font-bold text-slate-900">€ ${inv.totalIncl.toFixed(2).replace('.', ',')}</td>
+          <td class="p-4 text-right space-x-2">
+            <button onclick="openGmailDraft('${inv.invoiceNum}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold shadow transition">Open Gmail</button>
+            <button onclick="viewInvoice('${inv.invoiceNum}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded text-xs font-semibold transition">Bekijk / PDF</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function deleteInvoice(invoiceNum) {
+      if (confirm(`Factuur ${invoiceNum} verwijderen uit de cloud?`)) {
+        await db.collection('invoices').doc(invoiceNum).delete();
+      }
+    }
+
+    function renderKwartaal() {
+      const selectedYear = parseInt(document.getElementById('kwartaal-jaar-select').value, 10);
+      const container = document.getElementById('kwartaal-cards');
+      const quarters = [
+        { name: "Kwartaal 1 (Q1)", months: [1, 2, 3] },
+        { name: "Kwartaal 2 (Q2)", months: [4, 5, 6] },
+        { name: "Kwartaal 3 (Q3)", months: [7, 8, 9] },
+        { name: "Kwartaal 4 (Q4)", months: [10, 11, 12] }
+      ];
+
+      container.innerHTML = quarters.map(q => {
+        const qInvoices = invoices.filter(i => i.year === selectedYear && q.months.includes(i.month));
+        const totalExcl = qInvoices.reduce((sum, i) => sum + i.totalExcl, 0);
+        const totalVat = qInvoices.reduce((sum, i) => sum + i.vatAmount, 0);
+        const totalIncl = qInvoices.reduce((sum, i) => sum + i.totalIncl, 0);
+
+        return `
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+            <div class="flex justify-between items-center border-b pb-2">
+              <h3 class="font-bold text-slate-800">${q.name}</h3>
+              <span class="text-xs bg-slate-100 font-semibold px-2 py-0.5 rounded text-slate-600">${qInvoices.length} facturen</span>
+            </div>
+            <div class="space-y-1.5 text-sm">
+              <div class="flex justify-between text-slate-600"><span>Omzet excl. BTW:</span><span class="font-medium">€ ${totalExcl.toFixed(2).replace('.', ',')}</span></div>
+              <div class="flex justify-between text-blue-600 font-semibold"><span>Verschuldigde BTW (21%):</span><span>€ ${totalVat.toFixed(2).replace('.', ',')}</span></div>
+              <div class="flex justify-between text-slate-900 font-bold pt-2 border-t"><span>Totaal incl. BTW:</span><span>€ ${totalIncl.toFixed(2).replace('.', ',')}</span></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function viewInvoice(invoiceNum) {
+      const inv = invoices.find(i => i.invoiceNum === invoiceNum);
+      if (!inv) return;
+
+      document.getElementById('printable-invoice').innerHTML = `
+        <div class="space-y-6">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="font-bold text-lg text-slate-900">${inv.tenantCompany}</div>
+              <div class="text-sm text-slate-700">T.a.v. ${inv.tenantAttn}</div>
+              <div class="text-sm text-slate-700">${inv.address}</div>
+              <div class="text-sm text-slate-700">${inv.zipCity}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xl font-bold text-slate-900">FACTUUR</div>
+              <div class="text-sm text-slate-600 mt-1"><strong>Factuur:</strong> ${inv.invoiceNum}</div>
+              <div class="text-sm text-slate-600"><strong>Factuurdatum:</strong> ${inv.invoiceDate}</div>
+              <div class="text-sm text-slate-600"><strong>Vervaldatum:</strong> ${inv.dueDate}</div>
+            </div>
+          </div>
+
+          <div class="border-t border-b py-2 my-2 text-sm font-semibold text-slate-800">
+            Betreft: Maandelijkse huur ${inv.boxName}
+          </div>
+
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="border-b border-slate-300 font-semibold text-slate-700">
+                <th class="py-2">Beschrijving</th>
+                <th class="py-2 text-center">Aantal</th>
+                <th class="py-2 text-right">Bedrag excl. btw</th>
+                <th class="py-2 text-right">Bedrag incl. btw</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <tr>
+                <td class="py-2.5"><div class="font-medium text-slate-900">Maandelijkse huurprijs ${inv.boxName}</div><div class="text-xs text-slate-500">Huurperiode ${inv.periodStr} | 21% Btw</div></td>
+                <td class="py-2.5 text-center">1</td>
+                <td class="py-2.5 text-right">€ ${inv.rentExcl.toFixed(2).replace('.', ',')}</td>
+                <td class="py-2.5 text-right">€ ${(inv.rentExcl * 1.21).toFixed(2).replace('.', ',')}</td>
+              </tr>
+              <tr>
+                <td class="py-2.5"><div class="font-medium text-slate-900">Vaste basiskosten elektra</div><div class="text-xs text-slate-500">21% Btw</div></td>
+                <td class="py-2.5 text-center">1</td>
+                <td class="py-2.5 text-right">€ ${inv.elecExcl.toFixed(2).replace('.', ',')}</td>
+                <td class="py-2.5 text-right">€ ${(inv.elecExcl * 1.21).toFixed(2).replace('.', ',')}</td>
+              </tr>
+              <tr>
+                <td class="py-2.5"><div class="font-medium text-slate-900">Vast bedrag servicekosten</div><div class="text-xs text-slate-500">21% Btw</div></td>
+                <td class="py-2.5 text-center">1</td>
+                <td class="py-2.5 text-right">€ ${inv.serviceExcl.toFixed(2).replace('.', ',')}</td>
+                <td class="py-2.5 text-right">€ ${(inv.serviceExcl * 1.21).toFixed(2).replace('.', ',')}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="flex justify-end pt-2">
+            <div class="w-64 space-y-1.5 text-sm">
+              <div class="flex justify-between text-slate-600"><span>Totaalbedrag excl. btw</span><span>€ ${inv.totalExcl.toFixed(2).replace('.', ',')}</span></div>
+              <div class="flex justify-between text-slate-600"><span>Btw hoog (21.0%)</span><span>€ ${inv.vatAmount.toFixed(2).replace('.', ',')}</span></div>
+              <div class="flex justify-between font-bold text-slate-900 border-t border-slate-300 pt-1 text-base"><span>Totaalbedrag incl. btw</span><span>€ ${inv.totalIncl.toFixed(2).replace('.', ',')}</span></div>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-300 pt-4 mt-6">
+            <div class="text-xs text-slate-600 space-y-1">
+              <p><strong>Naam:</strong> ${owner.name} | <strong>Tel.:</strong> ${owner.phone} | <strong>E-mail:</strong> ${owner.email}</p>
+              <p><strong>IBAN:</strong> ${owner.iban} | <strong>BIC:</strong> ${owner.bic} | <strong>Op naam van:</strong> ${owner.name}</p>
+              <p class="pt-2 text-slate-800 font-medium">Gelieve dit bedrag van € ${inv.totalIncl.toFixed(2).replace('.', ',')} over te maken voor: ${inv.dueDate} op rekeningnummer: ${owner.iban} t.n.v. ${owner.name.toUpperCase()} o.v.v. "Factuur ${inv.invoiceNum}".</p>
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('invoice-modal').classList.remove('hidden');
+    }
+
+    function closeInvoiceModal() {
+      document.getElementById('invoice-modal').classList.add('hidden');
+    }
+
+    function openGmailDraft(invoiceNum) {
+      const inv = invoices.find(i => i.invoiceNum === invoiceNum);
+      if (!inv) return;
+
+      const recipient = inv.tenantEmail || '';
+      const subject = `Factuur ${inv.invoiceNum} - Huur ${inv.boxName}`;
+      const body = `Beste ${inv.tenantAttn || inv.tenantCompany},\n\n` +
+        `Hierbij ontvangt u de factuur voor de maandelijkse huur van ${inv.boxName} voor de periode ${inv.periodStr}.\n\n` +
+        `Factuurnummer: ${inv.invoiceNum}\n` +
+        `Totaalbedrag incl. BTW: € ${inv.totalIncl.toFixed(2).replace('.', ',')}\n` +
+        `Vervaldatum: ${inv.dueDate}\n\n` +
+        `Gelieve dit bedrag voor ${inv.dueDate} over te maken op rekeningnummer ${owner.iban} t.n.v. ${owner.name} o.v.v. "Factuur ${inv.invoiceNum}".\n\n` +
+        `Met vriendelijke groet,\n\n` +
+        `${owner.name}\n` +
+        `Tel.: ${owner.phone}`;
+
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipient)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.open(gmailUrl, '_blank');
+    }
+  </script>
+</body>
+</html>
