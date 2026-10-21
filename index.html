@@ -14,7 +14,7 @@
   <!-- HTML2PDF Bibliotheek voor rechtstreekse PDF download -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
-  <!-- QR Code Generator voor SEPA Bank QR (ING App ondersteund) -->
+  <!-- QR Code Generator voor SEPA Bank & iDEAL QR -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
@@ -830,14 +830,14 @@
           </table>
 
           <div class="flex justify-between items-end pt-2">
-            <!-- SEPA BANK QR SECTIE (ING / RABO / ABN) -->
-            <div class="flex items-center gap-4 border border-blue-200 bg-blue-50/70 p-3 rounded-xl max-w-sm">
-              <div id="qrcode-container" class="w-20 h-20 bg-white p-1 rounded border border-blue-300 flex items-center justify-center shrink-0"></div>
-              <div class="space-y-1">
+            <!-- GROTE SEPA & ING BANK QR SECTIE -->
+            <div class="flex items-center gap-4 border border-blue-300 bg-blue-50/80 p-3.5 rounded-xl max-w-md shadow-sm">
+              <div id="qrcode-container" class="w-32 h-32 bg-white p-1.5 rounded-lg border border-blue-400 flex items-center justify-center shrink-0 shadow-inner"></div>
+              <div class="space-y-1.5">
                 <div class="text-xs font-bold text-blue-950 flex items-center gap-1">
                   <span>📱</span> Scan & Betaal via Bank-App
                 </div>
-                <p class="text-[11px] text-blue-900 leading-tight">Scan met de <strong>ING Mobiel Bankieren App</strong> (of gewone camera). Alle gegevens (bedrag, IBAN, kenmerk) worden automatisch ingevuld.</p>
+                <p class="text-[11px] text-blue-900 leading-snug">Scan deze QR-code met de scanner in je <strong>ING App</strong>, <strong>Rabobank</strong>, <strong>ABN AMRO</strong> of camera. Bedrag, IBAN en kenmerk staan direct ingevuld.</p>
                 ${owner.idealLink ? `<a href="${owner.idealLink}" target="_blank" class="inline-block text-[11px] font-bold text-blue-700 underline hover:text-blue-900">📲 Of open ING Betaalverzoek &rarr;</a>` : ''}
               </div>
             </div>
@@ -860,38 +860,45 @@
         </div>
       `;
 
-      // Genereer officieel EPC SEPA QR-formaat voor ING Bank App
+      // Genereer QR-code
       setTimeout(() => {
         const qrBox = document.getElementById('qrcode-container');
         if (qrBox) {
           qrBox.innerHTML = '';
           
-          const cleanIban = (owner.iban || '').replace(/\s+/g, '').toUpperCase();
-          const cleanBic = (owner.bic || 'INGBNL2A').trim().toUpperCase();
-          const nameStr = (owner.name || 'C.A. Fictoor').substring(0, 70);
-          const amountStr = `EUR${inv.totalIncl.toFixed(2)}`;
-          const refStr = `Factuur ${inv.invoiceNum}`;
+          let qrTargetText = '';
 
-          // Formaat volgens de officiële European Payments Council standaard (EPC069-12)
-          const epcQrString = [
-            'BCD',
-            '002',
-            '1',
-            'SCT',
-            cleanBic,
-            nameStr,
-            cleanIban,
-            amountStr,
-            '',
-            '',
-            refStr,
-            ''
-          ].join('\n');
+          if (owner.idealLink) {
+            // Als er een ING betaallink is ingesteld, gebruik deze link voor de camera
+            qrTargetText = owner.idealLink;
+          } else {
+            // Anders officieel EPC SEPA QR-formaat voor ING / Rabo / ABN bank scanners
+            const cleanIban = (owner.iban || '').replace(/\s+/g, '').toUpperCase();
+            const cleanBic = (owner.bic || 'INGBNL2A').trim().toUpperCase();
+            const nameStr = (owner.name || 'C.A. Fictoor').substring(0, 70);
+            const amountStr = `EUR${inv.totalIncl.toFixed(2)}`;
+            const refStr = `Factuur ${inv.invoiceNum}`;
+
+            qrTargetText = [
+              'BCD',
+              '002',
+              '1',
+              'SCT',
+              cleanBic,
+              nameStr,
+              cleanIban,
+              amountStr,
+              '',
+              '',
+              refStr,
+              ''
+            ].join('\n');
+          }
 
           new QRCode(qrBox, {
-            text: epcQrString,
-            width: 72,
-            height: 72,
+            text: qrTargetText,
+            width: 124,
+            height: 124,
             colorDark: "#0f172a",
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.M
