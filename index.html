@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Garagebox Factuurbeheer - CA Fictoor</title>
+  <title>Garagebox Factuurbeheer - C.A. Fictoor</title>
   <script src="https://cdn.tailwindcss.com"></script>
   
   <!-- Firebase SDKs -->
@@ -13,6 +13,9 @@
 
   <!-- HTML2PDF Bibliotheek voor rechtstreekse PDF download -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
+  <!-- QR Code Generator voor SEPA Bank QR (ING App ondersteund) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
     @media print {
@@ -201,6 +204,7 @@
             <div><label class="block text-xs font-semibold text-slate-600 mb-1">E-mailadres</label><input type="email" id="owner-email" class="w-full border border-slate-300 rounded-lg p-2 text-sm"></div>
             <div><label class="block text-xs font-semibold text-slate-600 mb-1">IBAN Rekeningnummer</label><input type="text" id="owner-iban" class="w-full border border-slate-300 rounded-lg p-2 text-sm"></div>
             <div><label class="block text-xs font-semibold text-slate-600 mb-1">BIC Code</label><input type="text" id="owner-bic" class="w-full border border-slate-300 rounded-lg p-2 text-sm"></div>
+            <div><label class="block text-xs font-semibold text-slate-600 mb-1">ING Betaalverzoek Link (Optioneel)</label><input type="text" id="owner-ideal" placeholder="https://ing.nl/betaalverzoek/..." class="w-full border border-slate-300 rounded-lg p-2 text-sm"></div>
           </div>
           <button onclick="saveOwnerInfo()" class="mt-4 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-800 transition">Gegevens Opslaan in Cloud</button>
         </div>
@@ -311,7 +315,7 @@
 
     const CORRECT_PIN = "4146";
 
-    let owner = { name: "CA Fictoor", phone: "+31 6 41 300 282", email: "keesfictoor@gmail.com", iban: "NL22 INGB 0654 3930 52", bic: "INGBNL2A" };
+    let owner = { name: "C.A. Fictoor", phone: "+31 6 41 300 282", email: "keesfictoor@gmail.com", iban: "NL22 INGB 0654 3930 52", bic: "INGBNL2A", idealLink: "" };
     let boxes = [
       { id: 38, boxName: "Tappersweg 57, Box 38", tenantCompany: "G.P. Boonstra Beheer B.V.", tenantAttn: "Pelle Pottermans", email: "pelle@keramikos.nl", address: "Conradweg 19", zipCity: "2031CM Haarlem", rentExcl: 300.00, elecExcl: 20.00, serviceExcl: 17.50 },
       { id: 39, boxName: "Tappersweg 57, Box 39", tenantCompany: "Remote Admin", tenantAttn: "A. Sampathkumar", email: "", address: "Oudeweg 43", zipCity: "2031CA Haarlem", rentExcl: 265.00, elecExcl: 20.00, serviceExcl: 17.50 },
@@ -319,6 +323,20 @@
     ];
     let invoices = [];
     let currentActiveInvoiceNum = '';
+
+    // Datum Omzetten naar Nederlands Formaat (DD-MM-JJJJ)
+    function formatDateDutch(dateStr) {
+      if (!dateStr) return '';
+      const s = dateStr.replace(/\//g, '-').trim();
+      const parts = s.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          return `${parts[2].padStart(2,'0')}-${parts[1].padStart(2,'0')}-${parts[0]}`;
+        }
+        return `${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}-${parts[2]}`;
+      }
+      return dateStr;
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
       const now = new Date();
@@ -365,7 +383,7 @@
       db.collection('settings').doc('config').onSnapshot(doc => {
         if (doc.exists) {
           const data = doc.data();
-          if (data.owner) owner = data.owner;
+          if (data.owner) owner = { ...owner, ...data.owner };
           if (data.boxes) boxes = data.boxes;
         } else {
           db.collection('settings').doc('config').set({ owner, boxes });
@@ -376,7 +394,12 @@
 
       db.collection('invoices').onSnapshot(snapshot => {
         invoices = [];
-        snapshot.forEach(doc => invoices.push(doc.data()));
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          d.invoiceDate = formatDateDutch(d.invoiceDate);
+          d.dueDate = formatDateDutch(d.dueDate);
+          invoices.push(d);
+        });
         invoices.sort((a, b) => b.invoiceNum.localeCompare(a.invoiceNum));
 
         renderInvoices();
@@ -395,11 +418,12 @@
     }
 
     function loadOwnerInfo() {
-      document.getElementById('owner-name').value = owner.name || '';
+      document.getElementById('owner-name').value = owner.name || 'C.A. Fictoor';
       document.getElementById('owner-phone').value = owner.phone || '';
       document.getElementById('owner-email').value = owner.email || '';
       document.getElementById('owner-iban').value = owner.iban || '';
       document.getElementById('owner-bic').value = owner.bic || '';
+      document.getElementById('owner-ideal').value = owner.idealLink || '';
     }
 
     function saveOwnerInfo() {
@@ -408,7 +432,8 @@
         phone: document.getElementById('owner-phone').value,
         email: document.getElementById('owner-email').value,
         iban: document.getElementById('owner-iban').value,
-        bic: document.getElementById('owner-bic').value
+        bic: document.getElementById('owner-bic').value,
+        idealLink: document.getElementById('owner-ideal').value
       };
       db.collection('settings').doc('config').set({ owner, boxes }, { merge: true });
       alert('Gegevens opgeslagen in Firebase Cloud!');
@@ -444,10 +469,10 @@
       const monthInt = parseInt(month, 10);
       const yearInt = parseInt(year, 10);
       const lastDay = new Date(yearInt, monthInt, 0).getDate();
-      const periodStr = `01-${month.padStart(2,'0')}-${yearInt}/${lastDay.toString().padStart(2,'0')}-${month.padStart(2,'0')}-${yearInt}`;
+      const periodStr = `01-${month.padStart(2,'0')}-${yearInt} t/m ${lastDay.toString().padStart(2,'0')}-${month.padStart(2,'0')}-${yearInt}`;
       const now = new Date();
-      const invoiceDateStr = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()}`;
-      const dueDateStr = `${lastDay.toString().padStart(2,'0')}/${month.padStart(2,'0')}/${yearInt}`;
+      const invoiceDateStr = `${now.getDate().toString().padStart(2,'0')}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getFullYear()}`;
+      const dueDateStr = `${lastDay.toString().padStart(2,'0')}-${month.padStart(2,'0')}-${yearInt}`;
 
       let created = 0;
       for (const box of boxes) {
@@ -527,10 +552,10 @@
       const month = d.getMonth() + 1;
       const monthStr = month.toString().padStart(2, '0');
       const dayStr = d.getDate().toString().padStart(2, '0');
-      const invoiceDateStr = `${dayStr}/${monthStr}/${year}`;
+      const invoiceDateStr = `${dayStr}-${monthStr}-${year}`;
 
       const dd = new Date(dueVal || dateVal);
-      const dueDateStr = `${dd.getDate().toString().padStart(2, '0')}/${(dd.getMonth() + 1).toString().padStart(2, '0')}/${dd.getFullYear()}`;
+      const dueDateStr = `${dd.getDate().toString().padStart(2, '0')}-${(dd.getMonth() + 1).toString().padStart(2, '0')}-${dd.getFullYear()}`;
 
       const boxIdStr = document.getElementById('wb-box-select').value;
       let matchedBox = boxIdStr ? boxes.find(b => b.id === parseInt(boxIdStr, 10)) : null;
@@ -693,13 +718,11 @@
     function renderKwartaal() {
       const selectedYear = parseInt(document.getElementById('kwartaal-jaar-select').value, 10);
       
-      // Bereken Jaartotalen
       const yearInvoices = invoices.filter(i => i.year === selectedYear);
       const yearExcl = yearInvoices.reduce((sum, i) => sum + i.totalExcl, 0);
       const yearVat = yearInvoices.reduce((sum, i) => sum + i.vatAmount, 0);
       const yearIncl = yearInvoices.reduce((sum, i) => sum + i.totalIncl, 0);
 
-      // Render Jaaroverzicht Card
       document.getElementById('jaar-summary-container').innerHTML = `
         <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-xl shadow-md border border-slate-700">
           <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-700 pb-4 mb-4">
@@ -728,7 +751,6 @@
         </div>
       `;
 
-      // Render Kwartalen
       const container = document.getElementById('kwartaal-cards');
       const quarters = [
         { name: "Kwartaal 1 (Q1)", months: [1, 2, 3] },
@@ -765,7 +787,7 @@
 
       currentActiveInvoiceNum = invoiceNum;
 
-      const vatLabel = inv.vatAmount === 0 ? "0.0% (Vrijgesteld / Waarborgsom)" : "21.0%";
+      const vatLabel = inv.vatAmount === 0 ? "0,0% (Vrijgesteld / Waarborgsom)" : "21,0%";
 
       document.getElementById('printable-invoice').innerHTML = `
         <div class="space-y-6">
@@ -778,7 +800,7 @@
             </div>
             <div class="text-right">
               <div class="text-xl font-bold text-slate-900">FACTUUR</div>
-              <div class="text-sm text-slate-600 mt-1"><strong>Factuur:</strong> ${inv.invoiceNum}</div>
+              <div class="text-sm text-slate-600 mt-1"><strong>Factuurnummer:</strong> ${inv.invoiceNum}</div>
               <div class="text-sm text-slate-600"><strong>Factuurdatum:</strong> ${inv.invoiceDate}</div>
               <div class="text-sm text-slate-600"><strong>Vervaldatum:</strong> ${inv.dueDate}</div>
             </div>
@@ -799,7 +821,7 @@
             </thead>
             <tbody class="divide-y divide-slate-200">
               <tr>
-                <td class="py-2.5"><div class="font-medium text-slate-900">${inv.boxName}</div><div class="text-xs text-slate-500">Periode ${inv.periodStr} | BTW: ${vatLabel}</div></td>
+                <td class="py-2.5"><div class="font-medium text-slate-900">${inv.boxName}</div><div class="text-xs text-slate-500">Periode: ${inv.periodStr} | BTW: ${vatLabel}</div></td>
                 <td class="py-2.5 text-center">1</td>
                 <td class="py-2.5 text-right">€ ${inv.totalExcl.toFixed(2).replace('.', ',')}</td>
                 <td class="py-2.5 text-right">€ ${inv.totalIncl.toFixed(2).replace('.', ',')}</td>
@@ -807,7 +829,20 @@
             </tbody>
           </table>
 
-          <div class="flex justify-end pt-2">
+          <div class="flex justify-between items-end pt-2">
+            <!-- SEPA BANK QR SECTIE (ING / RABO / ABN) -->
+            <div class="flex items-center gap-4 border border-blue-200 bg-blue-50/70 p-3 rounded-xl max-w-sm">
+              <div id="qrcode-container" class="w-20 h-20 bg-white p-1 rounded border border-blue-300 flex items-center justify-center shrink-0"></div>
+              <div class="space-y-1">
+                <div class="text-xs font-bold text-blue-950 flex items-center gap-1">
+                  <span>📱</span> Scan & Betaal via Bank-App
+                </div>
+                <p class="text-[11px] text-blue-900 leading-tight">Scan met de <strong>ING Mobiel Bankieren App</strong> (of gewone camera). Alle gegevens (bedrag, IBAN, kenmerk) worden automatisch ingevuld.</p>
+                ${owner.idealLink ? `<a href="${owner.idealLink}" target="_blank" class="inline-block text-[11px] font-bold text-blue-700 underline hover:text-blue-900">📲 Of open ING Betaalverzoek &rarr;</a>` : ''}
+              </div>
+            </div>
+
+            <!-- TOTAAL BEDRAGEN -->
             <div class="w-64 space-y-1.5 text-sm">
               <div class="flex justify-between text-slate-600"><span>Totaalbedrag excl. btw</span><span>€ ${inv.totalExcl.toFixed(2).replace('.', ',')}</span></div>
               <div class="flex justify-between text-slate-600"><span>Btw (${vatLabel})</span><span>€ ${inv.vatAmount.toFixed(2).replace('.', ',')}</span></div>
@@ -824,6 +859,46 @@
           </div>
         </div>
       `;
+
+      // Genereer officieel EPC SEPA QR-formaat voor ING Bank App
+      setTimeout(() => {
+        const qrBox = document.getElementById('qrcode-container');
+        if (qrBox) {
+          qrBox.innerHTML = '';
+          
+          const cleanIban = (owner.iban || '').replace(/\s+/g, '').toUpperCase();
+          const cleanBic = (owner.bic || 'INGBNL2A').trim().toUpperCase();
+          const nameStr = (owner.name || 'C.A. Fictoor').substring(0, 70);
+          const amountStr = `EUR${inv.totalIncl.toFixed(2)}`;
+          const refStr = `Factuur ${inv.invoiceNum}`;
+
+          // Formaat volgens de officiële European Payments Council standaard (EPC069-12)
+          const epcQrString = [
+            'BCD',
+            '002',
+            '1',
+            'SCT',
+            cleanBic,
+            nameStr,
+            cleanIban,
+            amountStr,
+            '',
+            '',
+            refStr,
+            ''
+          ].join('\n');
+
+          new QRCode(qrBox, {
+            text: epcQrString,
+            width: 72,
+            height: 72,
+            colorDark: "#0f172a",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        }
+      }, 50);
+
       document.getElementById('invoice-modal').classList.remove('hidden');
     }
 
@@ -855,13 +930,21 @@
 
       const recipient = inv.tenantEmail || '';
       const subject = `Factuur ${inv.invoiceNum} - ${inv.boxName}`;
+      
+      let idealText = '';
+      if (owner.idealLink) {
+        idealText = `📲 Direct betalen via ING Betaalverzoek? Klik op onderstaande link:\n${owner.idealLink}\n\n`;
+      }
+
       const body = `E-mailadres ontvanger: ${recipient || 'Geen e-mailadres ingesteld'}\n\n` +
         `Beste ${inv.tenantAttn || inv.tenantCompany},\n\n` +
         `Hierbij ontvangt u de factuur voor ${inv.boxName}.\n\n` +
         `Factuurnummer: ${inv.invoiceNum}\n` +
         `Totaalbedrag: € ${inv.totalIncl.toFixed(2).replace('.', ',')}\n` +
         `Vervaldatum: ${inv.dueDate}\n\n` +
-        `Gelieve dit bedrag voor ${inv.dueDate} over te maken op rekeningnummer ${owner.iban} t.n.v. ${owner.name} o.v.v. "Factuur ${inv.invoiceNum}".\n\n` +
+        `${idealText}` +
+        `Of scan de QR-code op de bijgevoegde factuur-PDF met uw ING Mobiel Bankieren App. De gegevens (bedrag, IBAN, kenmerk) staan dan direct ingevuld.\n\n` +
+        `Het bedrag mag ook voor ${inv.dueDate} worden overgemaakt op rekeningnummer ${owner.iban} t.n.v. ${owner.name} o.v.v. "Factuur ${inv.invoiceNum}".\n\n` +
         `Met vriendelijke groet,\n\n` +
         `${owner.name}\n` +
         `Tel.: ${owner.phone}`;
@@ -995,12 +1078,16 @@
               invNum = `HIST-${year}${month.toString().padStart(2,'0')}-${idx+1}`;
             }
 
+            const formattedInvDate = formatDateDutch(dateStr);
+            const rawDue = (cols[18] && cols[18].trim()) ? cols[18].trim() : dateStr;
+            const formattedDueDate = formatDateDutch(rawDue);
+
             const docData = {
               invoiceNum: invNum,
               year: year,
               month: month,
-              invoiceDate: dateStr,
-              dueDate: (cols[18] && cols[18].trim()) ? cols[18].trim() : dateStr,
+              invoiceDate: formattedInvDate,
+              dueDate: formattedDueDate,
               periodStr: `${month.toString().padStart(2,'0')}-${year}`,
               boxId: 0,
               boxName: desc || "Garagebox Huur",
