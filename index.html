@@ -68,14 +68,19 @@
       <div id="view-dashboard" class="space-y-6">
         <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 class="text-xl font-bold text-slate-900">Maandelijkse Facturen Genereren</h2>
-            <p class="text-sm text-slate-500">Selecteer de gewenste maand en genereer direct de 3 facturen.</p>
+            <h2 class="text-xl font-bold text-slate-900">Facturen Genereren</h2>
+            <p class="text-sm text-slate-500">Genereer maandhuur of maak een losse waarborgsomfactuur aan.</p>
           </div>
-          <div class="flex items-center gap-3 w-full md:w-auto">
-            <input type="month" id="selected-month" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <button onclick="generateMonthlyInvoices()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow transition whitespace-nowrap">
-              + Genereer 3 Maandfacturen
+          <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <button onclick="openWaarborgModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow transition whitespace-nowrap">
+              + Waarborgsom / Losse Factuur
             </button>
+            <div class="flex items-center gap-2">
+              <input type="month" id="selected-month" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <button onclick="generateMonthlyInvoices()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow transition whitespace-nowrap">
+                + Genereer 3 Maandfacturen
+              </button>
+            </div>
           </div>
         </div>
 
@@ -92,7 +97,7 @@
                   <th class="p-4">Huurder / Box</th>
                   <th class="p-4">Periode</th>
                   <th class="p-4">Bedrag (Excl.)</th>
-                  <th class="p-4">BTW (21%)</th>
+                  <th class="p-4">BTW</th>
                   <th class="p-4">Totaal (Incl.)</th>
                   <th class="p-4 text-right">Acties</th>
                 </tr>
@@ -131,7 +136,7 @@
                   <th class="p-4">Factuurnr</th>
                   <th class="p-4">Huurder / Box</th>
                   <th class="p-4">Bedrag (Excl.)</th>
-                  <th class="p-4">BTW (21%)</th>
+                  <th class="p-4">BTW</th>
                   <th class="p-4">Totaal (Incl.)</th>
                   <th class="p-4 text-right">Actie</th>
                 </tr>
@@ -144,20 +149,25 @@
         </div>
       </div>
 
-      <!-- KWARTAAL TAB -->
+      <!-- KWARTAAL TAB & JAAROVERZICHT -->
       <div id="view-kwartaal" class="space-y-6 hidden">
         <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
           <div>
-            <h2 class="text-xl font-bold text-slate-900">Kwartaal & BTW Overzicht</h2>
-            <p class="text-sm text-slate-500">Eenvoudig overzicht van de omzet en verschuldigde BTW voor de belastingaangifte.</p>
+            <h2 class="text-xl font-bold text-slate-900">Kwartaal, BTW & Jaaroverzicht</h2>
+            <p class="text-sm text-slate-500">Overzicht van de omzet, BTW en jaarlijkse cijfers voor de belastingaangifte.</p>
           </div>
           <div>
-            <select id="kwartaal-jaar-select" onchange="renderKwartaal()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select id="kwartaal-jaar-select" onchange="renderKwartaal()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="2026">2026</option>
               <option value="2025">2025</option>
             </select>
           </div>
         </div>
+
+        <!-- JAARTOTAALOVERZICHT KAART -->
+        <div id="jaar-summary-container"></div>
+
+        <!-- KWARTAAL CARDS -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="kwartaal-cards"></div>
       </div>
 
@@ -201,6 +211,73 @@
         </div>
       </div>
     </main>
+
+    <!-- WAARBORGSOM FACTUUR MODAL -->
+    <div id="waarborg-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden no-print">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+        <div class="flex justify-between items-center border-b pb-3">
+          <h3 class="font-bold text-lg text-slate-800">Nieuwe Waarborgsom / Losse Factuur</h3>
+          <button onclick="closeWaarborgModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+        </div>
+        
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Selecteer Huurder / Box</label>
+            <select id="wb-box-select" onchange="autoFillWaarborgBox()" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
+              <option value="">-- Selecteer Box of Handmatig --</option>
+              <option value="38">Tappersweg 57, Box 38 (G.P. Boonstra Beheer B.V.)</option>
+              <option value="39">Tappersweg 57, Box 39 (Remote Admin)</option>
+              <option value="40">Tappersweg 57, Box 40 (Ivo Groenendijk)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Huurder Bedrijfsnaam / Naam</label>
+            <input type="text" id="wb-company" placeholder="Bijv. G.P. Boonstra Beheer B.V." class="w-full border border-slate-300 rounded-lg p-2 text-sm">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">T.a.v.</label>
+            <input type="text" id="wb-attn" placeholder="Bijv. Pelle Pottermans" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Omschrijving op Factuur</label>
+            <input type="text" id="wb-desc" placeholder="Bijv. Waarborgsom Tappersweg 57, Box 38" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Bedrag (€)</label>
+              <input type="number" step="0.01" id="wb-amount" placeholder="1089.00" class="w-full border border-slate-300 rounded-lg p-2 text-sm font-semibold">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">BTW Tarief</label>
+              <select id="wb-vat-rate" class="w-full border border-slate-300 rounded-lg p-2 text-sm font-medium bg-slate-50">
+                <option value="0">0% BTW (Waarborgsom)</option>
+                <option value="21">21% BTW (Standaard)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Factuurdatum</label>
+              <input type="date" id="wb-date" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Vervaldatum</label>
+              <input type="date" id="wb-duedate" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t flex justify-end space-x-2">
+          <button onclick="closeWaarborgModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold">Annuleren</button>
+          <button onclick="saveWaarborgInvoice()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow transition">Factuur Opslaan & Genereren</button>
+        </div>
+      </div>
+    </div>
 
     <!-- FACTUUR WEERGAVE MODAL -->
     <div id="invoice-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
@@ -397,6 +474,101 @@
       else alert(`De facturen voor ${monthInput} bestaan al in de cloud.`);
     }
 
+    // WAARBORGSOM MODAL FUNCTIES
+    function openWaarborgModal() {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      const dueDate = new Date(today);
+      dueDate.setDate(dueDate.getDate() + 14);
+      const dueDateStr = dueDate.toISOString().split('T')[0];
+
+      document.getElementById('wb-date').value = todayStr;
+      document.getElementById('wb-duedate').value = dueDateStr;
+      document.getElementById('wb-box-select').value = '';
+      document.getElementById('wb-company').value = '';
+      document.getElementById('wb-attn').value = '';
+      document.getElementById('wb-desc').value = '';
+      document.getElementById('wb-amount').value = '';
+      document.getElementById('wb-vat-rate').value = '0';
+
+      document.getElementById('waarborg-modal').classList.remove('hidden');
+    }
+
+    function closeWaarborgModal() {
+      document.getElementById('waarborg-modal').classList.add('hidden');
+    }
+
+    function autoFillWaarborgBox() {
+      const boxIdStr = document.getElementById('wb-box-select').value;
+      if (!boxIdStr) return;
+      const box = boxes.find(b => b.id === parseInt(boxIdStr, 10));
+      if (box) {
+        document.getElementById('wb-company').value = box.tenantCompany;
+        document.getElementById('wb-attn').value = box.tenantAttn;
+        document.getElementById('wb-desc').value = `Waarborgsom ${box.boxName}`;
+      }
+    }
+
+    async function saveWaarborgInvoice() {
+      const company = document.getElementById('wb-company').value.trim();
+      const attn = document.getElementById('wb-attn').value.trim();
+      const desc = document.getElementById('wb-desc').value.trim();
+      const amount = parseFloat(document.getElementById('wb-amount').value);
+      const vatRate = parseFloat(document.getElementById('wb-vat-rate').value);
+      const dateVal = document.getElementById('wb-date').value;
+      const dueVal = document.getElementById('wb-duedate').value;
+
+      if (!company || !desc || isNaN(amount) || amount <= 0 || !dateVal) {
+        return alert('Vul a.u.b. alle velden (bedrijf, omschrijving, bedrag en datum) correct in.');
+      }
+
+      const d = new Date(dateVal);
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const monthStr = month.toString().padStart(2, '0');
+      const dayStr = d.getDate().toString().padStart(2, '0');
+      const invoiceDateStr = `${dayStr}/${monthStr}/${year}`;
+
+      const dd = new Date(dueVal || dateVal);
+      const dueDateStr = `${dd.getDate().toString().padStart(2, '0')}/${(dd.getMonth() + 1).toString().padStart(2, '0')}/${dd.getFullYear()}`;
+
+      const boxIdStr = document.getElementById('wb-box-select').value;
+      let matchedBox = boxIdStr ? boxes.find(b => b.id === parseInt(boxIdStr, 10)) : null;
+
+      const randomSeq = Math.floor(10 + Math.random() * 89);
+      const invoiceNum = `${year}${monthStr}00${matchedBox ? matchedBox.id : randomSeq}`;
+
+      const totalExcl = amount;
+      const vatAmount = vatRate > 0 ? totalExcl * (vatRate / 100) : 0;
+      const totalIncl = totalExcl + vatAmount;
+
+      const newInvoice = {
+        invoiceNum,
+        year: year,
+        month: month,
+        invoiceDate: invoiceDateStr,
+        dueDate: dueDateStr,
+        periodStr: `${monthStr}-${year}`,
+        boxId: matchedBox ? matchedBox.id : 0,
+        boxName: desc,
+        tenantCompany: company,
+        tenantAttn: attn || company,
+        tenantEmail: matchedBox ? matchedBox.email : '',
+        address: matchedBox ? matchedBox.address : '',
+        zipCity: matchedBox ? matchedBox.zipCity : '',
+        rentExcl: totalExcl,
+        elecExcl: 0,
+        serviceExcl: 0,
+        totalExcl: totalExcl,
+        vatAmount: vatAmount,
+        totalIncl: totalIncl
+      };
+
+      await db.collection('invoices').doc(invoiceNum).set(newInvoice);
+      closeWaarborgModal();
+      alert(`Waarborgsom Factuur ${invoiceNum} met 0% BTW succesvol opgeslagen!`);
+    }
+
     function renderInvoices() {
       const tbody = document.getElementById('invoices-table-body');
       document.getElementById('factuur-count').innerText = `${invoices.length} factuur/facturen`;
@@ -436,13 +608,17 @@
           `;
         }
 
+        const vatBadge = inv.vatAmount === 0 
+          ? `<span class="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium border border-amber-200">0% BTW</span>`
+          : `€ ${inv.vatAmount.toFixed(2).replace('.', ',')}`;
+
         html += `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-4 font-semibold text-slate-900">${inv.invoiceNum}</td>
             <td class="p-4"><div class="font-medium text-slate-800">${inv.tenantCompany}</div><div class="text-xs text-slate-500">${inv.boxName}</div></td>
             <td class="p-4 text-xs text-slate-600">${inv.periodStr}</td>
             <td class="p-4">€ ${inv.totalExcl.toFixed(2).replace('.', ',')}</td>
-            <td class="p-4 text-slate-500">€ ${inv.vatAmount.toFixed(2).replace('.', ',')}</td>
+            <td class="p-4 text-slate-500">${vatBadge}</td>
             <td class="p-4 font-bold text-slate-900">€ ${inv.totalIncl.toFixed(2).replace('.', ',')}</td>
             <td class="p-4 text-right space-x-2 whitespace-nowrap">
               <button onclick="openGmailDraft('${inv.invoiceNum}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold shadow transition">Open Gmail</button>
@@ -476,7 +652,7 @@
           <div class="text-2xl font-bold text-slate-900 mt-1">€ ${totalExcl.toFixed(2).replace('.', ',')}</div>
         </div>
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div class="text-xs text-slate-500 font-semibold uppercase">Verschuldigde BTW (21%)</div>
+          <div class="text-xs text-slate-500 font-semibold uppercase">Verschuldigde BTW</div>
           <div class="text-2xl font-bold text-blue-600 mt-1">€ ${totalVat.toFixed(2).replace('.', ',')}</div>
         </div>
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -516,6 +692,43 @@
 
     function renderKwartaal() {
       const selectedYear = parseInt(document.getElementById('kwartaal-jaar-select').value, 10);
+      
+      // Bereken Jaartotalen
+      const yearInvoices = invoices.filter(i => i.year === selectedYear);
+      const yearExcl = yearInvoices.reduce((sum, i) => sum + i.totalExcl, 0);
+      const yearVat = yearInvoices.reduce((sum, i) => sum + i.vatAmount, 0);
+      const yearIncl = yearInvoices.reduce((sum, i) => sum + i.totalIncl, 0);
+
+      // Render Jaaroverzicht Card
+      document.getElementById('jaar-summary-container').innerHTML = `
+        <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-xl shadow-md border border-slate-700">
+          <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-700 pb-4 mb-4">
+            <div>
+              <h3 class="text-xl font-bold text-blue-300">Totaal Jaaroverzicht ${selectedYear} (Jaaropgave)</h3>
+              <p class="text-xs text-slate-400 mt-1">Geaggregeerde jaarcijfers voor de inkomstenbelasting en jaarrekening.</p>
+            </div>
+            <span class="text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 px-3 py-1 rounded-full w-fit">
+              ${yearInvoices.length} facturen in ${selectedYear}
+            </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-slate-800/80 p-4 rounded-lg border border-slate-700/60">
+              <div class="text-xs uppercase font-semibold text-slate-400">Totale Jaaromzet (Excl. BTW)</div>
+              <div class="text-2xl font-bold text-white mt-1">€ ${yearExcl.toFixed(2).replace('.', ',')}</div>
+            </div>
+            <div class="bg-slate-800/80 p-4 rounded-lg border border-slate-700/60">
+              <div class="text-xs uppercase font-semibold text-slate-400">Totale BTW (Af te dragen)</div>
+              <div class="text-2xl font-bold text-blue-400 mt-1">€ ${yearVat.toFixed(2).replace('.', ',')}</div>
+            </div>
+            <div class="bg-slate-800/80 p-4 rounded-lg border border-slate-700/60">
+              <div class="text-xs uppercase font-semibold text-slate-400">Totaal Ontvangen (Incl. BTW)</div>
+              <div class="text-2xl font-bold text-emerald-400 mt-1">€ ${yearIncl.toFixed(2).replace('.', ',')}</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Render Kwartalen
       const container = document.getElementById('kwartaal-cards');
       const quarters = [
         { name: "Kwartaal 1 (Q1)", months: [1, 2, 3] },
@@ -538,7 +751,7 @@
             </div>
             <div class="space-y-1.5 text-sm">
               <div class="flex justify-between text-slate-600"><span>Omzet excl. BTW:</span><span class="font-medium">€ ${totalExcl.toFixed(2).replace('.', ',')}</span></div>
-              <div class="flex justify-between text-blue-600 font-semibold"><span>Verschuldigde BTW (21%):</span><span>€ ${totalVat.toFixed(2).replace('.', ',')}</span></div>
+              <div class="flex justify-between text-blue-600 font-semibold"><span>Verschuldigde BTW:</span><span>€ ${totalVat.toFixed(2).replace('.', ',')}</span></div>
               <div class="flex justify-between text-slate-900 font-bold pt-2 border-t"><span>Totaal incl. BTW:</span><span>€ ${totalIncl.toFixed(2).replace('.', ',')}</span></div>
             </div>
           </div>
@@ -551,6 +764,8 @@
       if (!inv) return;
 
       currentActiveInvoiceNum = invoiceNum;
+
+      const vatLabel = inv.vatAmount === 0 ? "0.0% (Vrijgesteld / Waarborgsom)" : "21.0%";
 
       document.getElementById('printable-invoice').innerHTML = `
         <div class="space-y-6">
@@ -570,7 +785,7 @@
           </div>
 
           <div class="border-t border-b py-2 my-2 text-sm font-semibold text-slate-800">
-            Betreft: Maandelijkse huur ${inv.boxName}
+            Betreft: ${inv.boxName}
           </div>
 
           <table class="w-full text-left border-collapse text-sm">
@@ -584,10 +799,10 @@
             </thead>
             <tbody class="divide-y divide-slate-200">
               <tr>
-                <td class="py-2.5"><div class="font-medium text-slate-900">Maandelijkse huurprijs ${inv.boxName}</div><div class="text-xs text-slate-500">Huurperiode ${inv.periodStr} | 21% Btw</div></td>
+                <td class="py-2.5"><div class="font-medium text-slate-900">${inv.boxName}</div><div class="text-xs text-slate-500">Periode ${inv.periodStr} | BTW: ${vatLabel}</div></td>
                 <td class="py-2.5 text-center">1</td>
                 <td class="py-2.5 text-right">€ ${inv.totalExcl.toFixed(2).replace('.', ',')}</td>
-                <td class="py-2.5 text-right">€ ${(inv.totalExcl * 1.21).toFixed(2).replace('.', ',')}</td>
+                <td class="py-2.5 text-right">€ ${inv.totalIncl.toFixed(2).replace('.', ',')}</td>
               </tr>
             </tbody>
           </table>
@@ -595,7 +810,7 @@
           <div class="flex justify-end pt-2">
             <div class="w-64 space-y-1.5 text-sm">
               <div class="flex justify-between text-slate-600"><span>Totaalbedrag excl. btw</span><span>€ ${inv.totalExcl.toFixed(2).replace('.', ',')}</span></div>
-              <div class="flex justify-between text-slate-600"><span>Btw hoog (21.0%)</span><span>€ ${inv.vatAmount.toFixed(2).replace('.', ',')}</span></div>
+              <div class="flex justify-between text-slate-600"><span>Btw (${vatLabel})</span><span>€ ${inv.vatAmount.toFixed(2).replace('.', ',')}</span></div>
               <div class="flex justify-between font-bold text-slate-900 border-t border-slate-300 pt-1 text-base"><span>Totaalbedrag incl. btw</span><span>€ ${inv.totalIncl.toFixed(2).replace('.', ',')}</span></div>
             </div>
           </div>
@@ -639,12 +854,12 @@
       if (!inv) return;
 
       const recipient = inv.tenantEmail || '';
-      const subject = `Factuur ${inv.invoiceNum} - Huur ${inv.boxName}`;
+      const subject = `Factuur ${inv.invoiceNum} - ${inv.boxName}`;
       const body = `E-mailadres ontvanger: ${recipient || 'Geen e-mailadres ingesteld'}\n\n` +
         `Beste ${inv.tenantAttn || inv.tenantCompany},\n\n` +
-        `Hierbij ontvangt u de factuur voor de maandelijkse huur van ${inv.boxName} voor de periode ${inv.periodStr}.\n\n` +
+        `Hierbij ontvangt u de factuur voor ${inv.boxName}.\n\n` +
         `Factuurnummer: ${inv.invoiceNum}\n` +
-        `Totaalbedrag incl. BTW: € ${inv.totalIncl.toFixed(2).replace('.', ',')}\n` +
+        `Totaalbedrag: € ${inv.totalIncl.toFixed(2).replace('.', ',')}\n` +
         `Vervaldatum: ${inv.dueDate}\n\n` +
         `Gelieve dit bedrag voor ${inv.dueDate} over te maken op rekeningnummer ${owner.iban} t.n.v. ${owner.name} o.v.v. "Factuur ${inv.invoiceNum}".\n\n` +
         `Met vriendelijke groet,\n\n` +
