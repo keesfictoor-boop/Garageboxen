@@ -216,15 +216,15 @@
       </div>
     </main>
 
-    <!-- WAARBORGSOM FACTUUR MODAL -->
+    <!-- WAARBORGSOM FACTUUR MODAL MET MEERDERE REGELS -->
     <div id="waarborg-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden no-print">
-      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-4">
         <div class="flex justify-between items-center border-b pb-3">
           <h3 class="font-bold text-lg text-slate-800">Nieuwe Waarborgsom / Losse Factuur</h3>
           <button onclick="closeWaarborgModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
         </div>
         
-        <div class="space-y-3">
+        <div class="space-y-4">
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Selecteer Huurder / Box</label>
             <select id="wb-box-select" onchange="autoFillWaarborgBox()" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
@@ -235,32 +235,14 @@
             </select>
           </div>
 
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Huurder Bedrijfsnaam / Naam</label>
-            <input type="text" id="wb-company" placeholder="Bijv. G.P. Boonstra Beheer B.V." class="w-full border border-slate-300 rounded-lg p-2 text-sm">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">T.a.v.</label>
-            <input type="text" id="wb-attn" placeholder="Bijv. Pelle Pottermans" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Omschrijving op Factuur</label>
-            <input type="text" id="wb-desc" placeholder="Bijv. Waarborgsom Tappersweg 57, Box 38" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
-          </div>
-
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Bedrag (€)</label>
-              <input type="number" step="0.01" id="wb-amount" placeholder="1089.00" class="w-full border border-slate-300 rounded-lg p-2 text-sm font-semibold">
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Huurder Bedrijfsnaam / Naam</label>
+              <input type="text" id="wb-company" placeholder="Bijv. G.P. Boonstra Beheer B.V." class="w-full border border-slate-300 rounded-lg p-2 text-sm">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">BTW Tarief</label>
-              <select id="wb-vat-rate" class="w-full border border-slate-300 rounded-lg p-2 text-sm font-medium bg-slate-50">
-                <option value="0">0% BTW (Waarborgsom)</option>
-                <option value="21">21% BTW (Standaard)</option>
-              </select>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">T.a.v.</label>
+              <input type="text" id="wb-attn" placeholder="Bijv. Pelle Pottermans" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
             </div>
           </div>
 
@@ -273,6 +255,27 @@
               <label class="block text-xs font-semibold text-slate-600 mb-1">Vervaldatum</label>
               <input type="date" id="wb-duedate" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
             </div>
+          </div>
+
+          <!-- MEERDERE FACTUURREGELS SECTIE -->
+          <div class="border-t pt-3 space-y-3">
+            <div class="flex justify-between items-center">
+              <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide">Factuurregels / Posten</label>
+              <button type="button" onclick="addWaarborgLineItem()" class="text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded-lg border border-blue-200 transition">
+                + Regel Toevoegen
+              </button>
+            </div>
+            <div id="wb-lines-container" class="space-y-2">
+              <!-- Regels worden hier dynamisch toegevoegd -->
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">BTW Tarief over deze factuur</label>
+            <select id="wb-vat-rate" class="w-full border border-slate-300 rounded-lg p-2 text-sm font-medium bg-slate-50">
+              <option value="0">0% BTW (Waarborgsom / Vrijgesteld)</option>
+              <option value="21">21% BTW (Standaard)</option>
+            </select>
           </div>
         </div>
 
@@ -483,11 +486,18 @@
           const vatAmount = totalExcl * 0.21;
           const totalIncl = totalExcl + vatAmount;
 
+          // Drie gespecificeerde posten volgens afbeelding
+          const lineItems = [
+            { desc: `Maandelijkse huur ${box.boxName}`, qty: 1, priceExcl: box.rentExcl, vatPct: 21 },
+            { desc: `Elektra ${box.boxName}`, qty: 1, priceExcl: box.elecExcl, vatPct: 21 },
+            { desc: `Servicekosten ${box.boxName}`, qty: 1, priceExcl: box.serviceExcl, vatPct: 21 }
+          ];
+
           const newInvoice = {
             invoiceNum, year: yearInt, month: monthInt, invoiceDate: invoiceDateStr, dueDate: dueDateStr,
             periodStr, boxId: box.id, boxName: box.boxName, tenantCompany: box.tenantCompany, tenantAttn: box.tenantAttn,
             tenantEmail: box.email || '', address: box.address, zipCity: box.zipCity, rentExcl: box.rentExcl, elecExcl: box.elecExcl,
-            serviceExcl: box.serviceExcl, totalExcl, vatAmount, totalIncl
+            serviceExcl: box.serviceExcl, totalExcl, vatAmount, totalIncl, lineItems
           };
 
           await db.collection('invoices').doc(invoiceNum).set(newInvoice);
@@ -499,7 +509,19 @@
       else alert(`De facturen voor ${monthInput} bestaan al in de cloud.`);
     }
 
-    // WAARBORGSOM MODAL FUNCTIES
+    // WAARBORGSOM & MEERDERE REGELS FUNCTIES
+    function addWaarborgLineItem(desc = '', amount = '') {
+      const container = document.getElementById('wb-lines-container');
+      const div = document.createElement('div');
+      div.className = "flex items-center gap-2 wb-line-row";
+      div.innerHTML = `
+        <input type="text" placeholder="Omschrijving (bijv. Waarborgsom Box 38)" value="${desc}" class="wb-desc-input w-2/3 border border-slate-300 rounded-lg p-2 text-sm">
+        <input type="number" step="0.01" placeholder="Bedrag (€ excl)" value="${amount}" class="wb-amount-input w-1/3 border border-slate-300 rounded-lg p-2 text-sm font-semibold">
+        <button type="button" onclick="this.parentElement.remove()" class="text-rose-500 hover:text-rose-700 font-bold px-1 text-lg">&times;</button>
+      `;
+      container.appendChild(div);
+    }
+
     function openWaarborgModal() {
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
@@ -512,9 +534,10 @@
       document.getElementById('wb-box-select').value = '';
       document.getElementById('wb-company').value = '';
       document.getElementById('wb-attn').value = '';
-      document.getElementById('wb-desc').value = '';
-      document.getElementById('wb-amount').value = '';
       document.getElementById('wb-vat-rate').value = '0';
+      
+      document.getElementById('wb-lines-container').innerHTML = '';
+      addWaarborgLineItem('Waarborgsom', '');
 
       document.getElementById('waarborg-modal').classList.remove('hidden');
     }
@@ -530,21 +553,35 @@
       if (box) {
         document.getElementById('wb-company').value = box.tenantCompany;
         document.getElementById('wb-attn').value = box.tenantAttn;
-        document.getElementById('wb-desc').value = `Waarborgsom ${box.boxName}`;
+        
+        const container = document.getElementById('wb-lines-container');
+        container.innerHTML = '';
+        addWaarborgLineItem(`Waarborgsom ${box.boxName}`, '');
       }
     }
 
     async function saveWaarborgInvoice() {
       const company = document.getElementById('wb-company').value.trim();
       const attn = document.getElementById('wb-attn').value.trim();
-      const desc = document.getElementById('wb-desc').value.trim();
-      const amount = parseFloat(document.getElementById('wb-amount').value);
       const vatRate = parseFloat(document.getElementById('wb-vat-rate').value);
       const dateVal = document.getElementById('wb-date').value;
       const dueVal = document.getElementById('wb-duedate').value;
 
-      if (!company || !desc || isNaN(amount) || amount <= 0 || !dateVal) {
-        return alert('Vul a.u.b. alle velden (bedrijf, omschrijving, bedrag en datum) correct in.');
+      const rows = document.querySelectorAll('.wb-line-row');
+      let lineItems = [];
+      let totalExcl = 0;
+
+      rows.forEach(r => {
+        const desc = r.querySelector('.wb-desc-input').value.trim();
+        const amt = parseFloat(r.querySelector('.wb-amount-input').value);
+        if (desc && !isNaN(amt) && amt > 0) {
+          lineItems.push({ desc, qty: 1, priceExcl: amt, vatPct: vatRate });
+          totalExcl += amt;
+        }
+      });
+
+      if (!company || lineItems.length === 0 || !dateVal) {
+        return alert('Vul a.u.b. een bedrijfsnaam, ten minste één geldige factuurregel (omschrijving + bedrag) en de datum in.');
       }
 
       const d = new Date(dateVal);
@@ -563,7 +600,6 @@
       const randomSeq = Math.floor(10 + Math.random() * 89);
       const invoiceNum = `${year}${monthStr}00${matchedBox ? matchedBox.id : randomSeq}`;
 
-      const totalExcl = amount;
       const vatAmount = vatRate > 0 ? totalExcl * (vatRate / 100) : 0;
       const totalIncl = totalExcl + vatAmount;
 
@@ -575,7 +611,7 @@
         dueDate: dueDateStr,
         periodStr: `${monthStr}-${year}`,
         boxId: matchedBox ? matchedBox.id : 0,
-        boxName: desc,
+        boxName: lineItems[0].desc,
         tenantCompany: company,
         tenantAttn: attn || company,
         tenantEmail: matchedBox ? matchedBox.email : '',
@@ -586,12 +622,13 @@
         serviceExcl: 0,
         totalExcl: totalExcl,
         vatAmount: vatAmount,
-        totalIncl: totalIncl
+        totalIncl: totalIncl,
+        lineItems: lineItems
       };
 
       await db.collection('invoices').doc(invoiceNum).set(newInvoice);
       closeWaarborgModal();
-      alert(`Waarborgsom Factuur ${invoiceNum} met 0% BTW succesvol opgeslagen!`);
+      alert(`Factuur ${invoiceNum} met ${lineItems.length} regels succesvol opgeslagen!`);
     }
 
     function renderInvoices() {
@@ -787,6 +824,38 @@
 
       currentActiveInvoiceNum = invoiceNum;
 
+      // Bouw gespecificeerde tabelregels op
+      let itemsToRender = inv.lineItems;
+      if (!itemsToRender || itemsToRender.length === 0) {
+        if (inv.rentExcl && inv.elecExcl && inv.serviceExcl) {
+          itemsToRender = [
+            { desc: `Maandelijkse huur ${inv.boxName}`, qty: 1, priceExcl: inv.rentExcl, vatPct: 21 },
+            { desc: `Elektra ${inv.boxName}`, qty: 1, priceExcl: inv.elecExcl, vatPct: 21 },
+            { desc: `Servicekosten ${inv.boxName}`, qty: 1, priceExcl: inv.serviceExcl, vatPct: 21 }
+          ];
+        } else {
+          itemsToRender = [
+            { desc: inv.boxName, qty: 1, priceExcl: inv.totalExcl, vatPct: inv.vatAmount > 0 ? 21 : 0 }
+          ];
+        }
+      }
+
+      const tableRowsHtml = itemsToRender.map(item => {
+        const itemVat = item.priceExcl * ((item.vatPct || 21) / 100);
+        const itemIncl = item.priceExcl + itemVat;
+        return `
+          <tr>
+            <td class="py-3">
+              <div class="font-medium text-slate-900">${item.desc}</div>
+              <div class="text-xs text-slate-500">Huurperiode ${inv.periodStr} | ${item.vatPct || (inv.vatAmount > 0 ? 21 : 0)}% Btw</div>
+            </td>
+            <td class="py-3 text-center">${item.qty || 1}</td>
+            <td class="py-3 text-right">€ ${item.priceExcl.toFixed(2).replace('.', ',')}</td>
+            <td class="py-3 text-right font-medium text-slate-900">€ ${itemIncl.toFixed(2).replace('.', ',')}</td>
+          </tr>
+        `;
+      }).join('');
+
       const vatLabel = inv.vatAmount === 0 ? "0,0% (Vrijgesteld / Waarborgsom)" : "21,0%";
 
       document.getElementById('printable-invoice').innerHTML = `
@@ -807,12 +876,13 @@
           </div>
 
           <div class="border-t border-b py-2 my-2 text-sm font-semibold text-slate-800">
-            Betreft: ${inv.boxName}
+            Betreft: Maandelijkse huur ${inv.boxName}
           </div>
 
+          <!-- GESPECIFICEERDE KOSTEN TABEL -->
           <table class="w-full text-left border-collapse text-sm">
             <thead>
-              <tr class="border-b border-slate-300 font-semibold text-slate-700">
+              <tr class="border-b border-slate-300 font-semibold text-slate-700 uppercase text-xs">
                 <th class="py-2">Beschrijving</th>
                 <th class="py-2 text-center">Aantal</th>
                 <th class="py-2 text-right">Bedrag excl. btw</th>
@@ -820,12 +890,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-200">
-              <tr>
-                <td class="py-2.5"><div class="font-medium text-slate-900">${inv.boxName}</div><div class="text-xs text-slate-500">Periode: ${inv.periodStr} | BTW: ${vatLabel}</div></td>
-                <td class="py-2.5 text-center">1</td>
-                <td class="py-2.5 text-right">€ ${inv.totalExcl.toFixed(2).replace('.', ',')}</td>
-                <td class="py-2.5 text-right">€ ${inv.totalIncl.toFixed(2).replace('.', ',')}</td>
-              </tr>
+              ${tableRowsHtml}
             </tbody>
           </table>
 
@@ -869,10 +934,8 @@
           let qrTargetText = '';
 
           if (owner.idealLink) {
-            // Als er een ING betaallink is ingesteld, gebruik deze link voor de camera
             qrTargetText = owner.idealLink;
           } else {
-            // Anders officieel EPC SEPA QR-formaat voor ING / Rabo / ABN bank scanners
             const cleanIban = (owner.iban || '').replace(/\s+/g, '').toUpperCase();
             const cleanBic = (owner.bic || 'INGBNL2A').trim().toUpperCase();
             const nameStr = (owner.name || 'C.A. Fictoor').substring(0, 70);
@@ -1108,7 +1171,8 @@
               serviceExcl: 0,
               totalExcl: totalExcl,
               vatAmount: vatAmount,
-              totalIncl: totalIncl
+              totalIncl: totalIncl,
+              lineItems: [{ desc: desc || "Garagebox Huur", qty: 1, priceExcl: totalExcl, vatPct: vatAmount > 0 ? 21 : 0 }]
             };
 
             const docRef = db.collection('invoices').doc(invNum);
